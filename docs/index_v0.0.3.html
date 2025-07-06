@@ -14,23 +14,6 @@
             background-color: #f5f5f5;
         }
         
-        .drag-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(102, 126, 234, 0.8);
-            z-index: 9999;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 2rem;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-        
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 1rem;
@@ -133,27 +116,6 @@
             max-width: 250px;
         }
         
-        .maplibregl-popup-content.hover-popup {
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 0.8rem;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            max-width: 200px;
-            text-align: left;
-        }
-        
-        .hover-popup .popup-title {
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-            color: #4ECDC4;
-        }
-        
-        .hover-popup .popup-item {
-            margin: 0.2rem 0;
-            font-size: 0.85rem;
-        }
-        
         .popup-text {
             margin-bottom: 1rem;
             font-weight: bold;
@@ -221,10 +183,6 @@
     </style>
 </head>
 <body>
-    <div class="drag-overlay" id="drag-overlay">
-        📁 GPXファイルをドロップしてください
-    </div>
-    
     <div class="header">
         <h1>🗾 GPX軌跡分割ツール</h1>
     </div>
@@ -256,7 +214,6 @@
         let splitPoints = [];
         let colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
         let currentPopup = null;
-        let hoverPopup = null;
         
         // 地図の初期化
         function initializeMap() {
@@ -298,82 +255,6 @@
                 mapLoaded = true; // エラーでも操作を続行できるようにする
                 updateStatus('地図の読み込みでエラーが発生しましたが、操作は可能です');
             });
-        }
-        
-        // ドラッグ・アンド・ドロップの設定
-        function setupDragAndDrop() {
-            const dragOverlay = document.getElementById('drag-overlay');
-            
-            // ドラッグオーバーイベント
-            document.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                dragOverlay.style.display = 'flex';
-            });
-            
-            // ドラッグリーブイベント
-            document.addEventListener('dragleave', function(e) {
-                if (e.clientX === 0 && e.clientY === 0) {
-                    dragOverlay.style.display = 'none';
-                }
-            });
-            
-            // ドロップイベント
-            document.addEventListener('drop', function(e) {
-                e.preventDefault();
-                dragOverlay.style.display = 'none';
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    const file = files[0];
-                    if (file.name.toLowerCase().endsWith('.gpx')) {
-                        // 既存のデータをクリア
-                        clearExistingData();
-                        loadGPXFile(file);
-                    } else {
-                        alert('GPXファイルを選択してください');
-                    }
-                }
-            });
-        }
-        
-        // 既存のデータをクリア
-        function clearExistingData() {
-            // 既存のレイヤーとソースを削除
-            if (mapLoaded && trackSegments.length > 0) {
-                trackSegments.forEach((segment, index) => {
-                    const sourceId = `track-source-${index}`;
-                    const layerId = `track-layer-${index}`;
-                    
-                    if (map.getLayer(layerId)) {
-                        map.removeLayer(layerId);
-                    }
-                    if (map.getSource(sourceId)) {
-                        map.removeSource(sourceId);
-                    }
-                });
-            }
-            
-            // 分割点のマーカーを削除
-            document.querySelectorAll('.split-marker').forEach(marker => marker.remove());
-            
-            // ポップアップを削除
-            if (currentPopup) {
-                currentPopup.remove();
-                currentPopup = null;
-            }
-            if (hoverPopup) {
-                hoverPopup.remove();
-                hoverPopup = null;
-            }
-            
-            // データをリセット
-            gpxData = null;
-            trackSegments = [];
-            splitPoints = [];
-            
-            // UIを更新
-            document.getElementById('track-info').style.display = 'none';
-            document.getElementById('export-btn').classList.remove('active');
         }
         
         // GPXファイルの読み込み
@@ -480,22 +361,7 @@
                 const coordinates = segment.points.map(point => [point.lon, point.lat]);
                 coordinates.forEach(coord => bounds.extend(coord));
                 
-                // 軌跡ポイントデータを含むFeatureCollectionを作成
-                const features = segment.points.map(point => ({
-                    type: 'Feature',
-                    geometry: {
-                        type: 'Point',
-                        coordinates: [point.lon, point.lat]
-                    },
-                    properties: {
-                        lat: point.lat,
-                        lon: point.lon,
-                        time: point.time,
-                        index: point.index
-                    }
-                }));
-                
-                const lineFeature = {
+                const geojson = {
                     type: 'Feature',
                     geometry: {
                         type: 'LineString',
@@ -503,20 +369,12 @@
                     }
                 };
                 
-                const pointsFeature = {
-                    type: 'FeatureCollection',
-                    features: features
-                };
-                
                 const sourceId = `track-source-${index}`;
                 const layerId = `track-layer-${index}`;
-                const pointsSourceId = `track-points-source-${index}`;
-                const pointsLayerId = `track-points-layer-${index}`;
                 
-                // 線を追加
                 map.addSource(sourceId, {
                     type: 'geojson',
-                    data: lineFeature
+                    data: geojson
                 });
                 
                 map.addLayer({
@@ -532,34 +390,6 @@
                         'line-width': 4,
                         'line-opacity': 0.8
                     }
-                });
-                
-                // 非表示のポイントレイヤーを追加（ホバー検出用）
-                map.addSource(pointsSourceId, {
-                    type: 'geojson',
-                    data: pointsFeature
-                });
-                
-                map.addLayer({
-                    id: pointsLayerId,
-                    type: 'circle',
-                    source: pointsSourceId,
-                    paint: {
-                        'circle-radius': 8,
-                        'circle-opacity': 0,
-                        'circle-color': segment.color
-                    }
-                });
-                
-                // ホバーイベントを追加
-                map.on('mouseenter', pointsLayerId, function(e) {
-                    map.getCanvas().style.cursor = 'pointer';
-                    showHoverPopup(e);
-                });
-                
-                map.on('mouseleave', pointsLayerId, function() {
-                    map.getCanvas().style.cursor = '';
-                    hideHoverPopup();
                 });
             });
             
@@ -581,51 +411,6 @@
             }
             
             updateTrackInfo();
-        }
-        
-        // ホバーポップアップを表示
-        function showHoverPopup(e) {
-            const feature = e.features[0];
-            const properties = feature.properties;
-            
-            // 時刻のフォーマット
-            let timeStr = '時刻情報なし';
-            if (properties.time) {
-                const date = new Date(properties.time);
-                if (!isNaN(date.getTime())) {
-                    timeStr = date.toLocaleString('ja-JP');
-                }
-            }
-            
-            const popupContent = `
-                <div class="hover-popup">
-                    <div class="popup-title">📍 軌跡ポイント</div>
-                    <div class="popup-item">🕐 ${timeStr}</div>
-                    <div class="popup-item">📍 緯度: ${properties.lat.toFixed(6)}</div>
-                    <div class="popup-item">📍 経度: ${properties.lon.toFixed(6)}</div>
-                </div>
-            `;
-            
-            if (hoverPopup) {
-                hoverPopup.remove();
-            }
-            
-            hoverPopup = new maplibregl.Popup({
-                closeButton: false,
-                closeOnClick: false,
-                offset: [0, -10]
-            })
-            .setLngLat(e.lngLat)
-            .setHTML(popupContent)
-            .addTo(map);
-        }
-        
-        // ホバーポップアップを非表示
-        function hideHoverPopup() {
-            if (hoverPopup) {
-                hoverPopup.remove();
-                hoverPopup = null;
-            }
         }
         
         // 地図クリックの処理
