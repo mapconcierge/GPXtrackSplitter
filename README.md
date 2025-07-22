@@ -2,6 +2,9 @@
 GPX Track Splitter
 
 
-## Demo Site
+## 1. Demo Site
 https://mapconcierge.github.io/GPXtrackSplitter/
 
+
+## License
+* 
