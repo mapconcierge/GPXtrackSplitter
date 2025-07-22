@@ -426,11 +426,13 @@
                 const trkpt = trkpts[i];
                 const lat = parseFloat(trkpt.getAttribute('lat'));
                 const lon = parseFloat(trkpt.getAttribute('lon'));
+                const ele = parseFloat(trkpt.getElementsByTagName('ele')[0]?.textContent);
                 const time = trkpt.getElementsByTagName('time')[0]?.textContent;
                 
                 gpxData.points.push({
                     lat: lat,
                     lon: lon,
+                    ele: isNaN(ele) ? null : ele,
                     time: time,
                     index: i
                 });
@@ -490,6 +492,7 @@
                     properties: {
                         lat: point.lat,
                         lon: point.lon,
+                        ele: point.ele,
                         time: point.time,
                         index: point.index
                     }
@@ -556,8 +559,22 @@
                     map.getCanvas().style.cursor = 'pointer';
                     showHoverPopup(e);
                 });
-                
+
                 map.on('mouseleave', pointsLayerId, function() {
+                    map.getCanvas().style.cursor = '';
+                    hideHoverPopup();
+                });
+
+                // ライン上のホバーイベント
+                map.on('mousemove', layerId, function(e) {
+                    const nearest = getClosestPoint(e.lngLat, segment.points);
+                    if (nearest) {
+                        map.getCanvas().style.cursor = 'pointer';
+                        showHoverPopupAt(e.lngLat, nearest);
+                    }
+                });
+
+                map.on('mouseleave', layerId, function() {
                     map.getCanvas().style.cursor = '';
                     hideHoverPopup();
                 });
@@ -583,41 +600,57 @@
             updateTrackInfo();
         }
         
-        // ホバーポップアップを表示
-        function showHoverPopup(e) {
-            const feature = e.features[0];
-            const properties = feature.properties;
-            
-            // 時刻のフォーマット
+        // ポップアップ用HTML生成
+        function createHoverContent(point) {
             let timeStr = '時刻情報なし';
-            if (properties.time) {
-                const date = new Date(properties.time);
+            if (point.time) {
+                const date = new Date(point.time);
                 if (!isNaN(date.getTime())) {
                     timeStr = date.toLocaleString('ja-JP');
                 }
             }
-            
-            const popupContent = `
+
+            const eleStr = point.ele !== null && !isNaN(point.ele) ? `${point.ele} m` : '高度情報なし';
+
+            return `
                 <div class="hover-popup">
                     <div class="popup-title">📍 軌跡ポイント</div>
                     <div class="popup-item">🕐 ${timeStr}</div>
-                    <div class="popup-item">📍 緯度: ${properties.lat.toFixed(6)}</div>
-                    <div class="popup-item">📍 経度: ${properties.lon.toFixed(6)}</div>
+                    <div class="popup-item">📍 緯度: ${point.lat.toFixed(6)}</div>
+                    <div class="popup-item">📍 経度: ${point.lon.toFixed(6)}</div>
+                    <div class="popup-item">⛰ 高度: ${eleStr}</div>
                 </div>
             `;
-            
+        }
+
+        // ポップアップを表示
+        function showHoverPopupAt(lngLat, point) {
+            const popupContent = createHoverContent(point);
+
             if (hoverPopup) {
                 hoverPopup.remove();
             }
-            
+
             hoverPopup = new maplibregl.Popup({
                 closeButton: false,
                 closeOnClick: false,
                 offset: [0, -10]
             })
-            .setLngLat(e.lngLat)
+            .setLngLat(lngLat)
             .setHTML(popupContent)
             .addTo(map);
+        }
+
+        // ポイントレイヤー用ホバーハンドラ
+        function showHoverPopup(e) {
+            const properties = e.features[0].properties;
+            const point = {
+                lat: parseFloat(properties.lat),
+                lon: parseFloat(properties.lon),
+                ele: properties.ele !== undefined ? parseFloat(properties.ele) : null,
+                time: properties.time
+            };
+            showHoverPopupAt(e.lngLat, point);
         }
         
         // ホバーポップアップを非表示
@@ -659,6 +692,20 @@
             const dx = point1[0] - point2[0];
             const dy = point1[1] - point2[1];
             return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // 指定座標に最も近い軌跡ポイントを取得
+        function getClosestPoint(lngLat, points) {
+            let closest = null;
+            let minDist = Infinity;
+            points.forEach(pt => {
+                const dist = calculateDistance([lngLat.lng, lngLat.lat], [pt.lon, pt.lat]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = pt;
+                }
+            });
+            return closest;
         }
         
         // 分割確認ポップアップを表示
