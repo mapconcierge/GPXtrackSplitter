@@ -6,5 +6,5 @@ GPX Track Splitter
 https://mapconcierge.github.io/GPXtrackSplitter/
 
 
-## License
+## 2. License
 * [MIT license](https://github.com/mapconcierge/GPXtrackSplitter/blob/main/LICENSE)
