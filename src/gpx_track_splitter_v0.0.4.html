@@ -257,6 +257,11 @@
         let colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
         let currentPopup = null;
         let hoverPopup = null;
+        let renderedSegmentCount = 0;
+
+        function getRandomColor() {
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
         
         // 地図の初期化
         function initializeMap() {
@@ -339,18 +344,26 @@
         // 既存のデータをクリア
         function clearExistingData() {
             // 既存のレイヤーとソースを削除
-            if (mapLoaded && trackSegments.length > 0) {
-                trackSegments.forEach((segment, index) => {
-                    const sourceId = `track-source-${index}`;
-                    const layerId = `track-layer-${index}`;
-                    
-                    if (map.getLayer(layerId)) {
-                        map.removeLayer(layerId);
+            if (mapLoaded && renderedSegmentCount > 0) {
+                for (let i = 0; i < renderedSegmentCount; i++) {
+                    const srcId = `track-source-${i}`;
+                    const lyrId = `track-layer-${i}`;
+                    const ptsSrcId = `track-points-source-${i}`;
+                    const ptsLyrId = `track-points-layer-${i}`;
+
+                    if (map.getLayer(lyrId)) {
+                        map.removeLayer(lyrId);
                     }
-                    if (map.getSource(sourceId)) {
-                        map.removeSource(sourceId);
+                    if (map.getSource(srcId)) {
+                        map.removeSource(srcId);
                     }
-                });
+                    if (map.getLayer(ptsLyrId)) {
+                        map.removeLayer(ptsLyrId);
+                    }
+                    if (map.getSource(ptsSrcId)) {
+                        map.removeSource(ptsSrcId);
+                    }
+                }
             }
             
             // 分割点のマーカーを削除
@@ -370,6 +383,7 @@
             gpxData = null;
             trackSegments = [];
             splitPoints = [];
+            renderedSegmentCount = 0;
             
             // UIを更新
             document.getElementById('track-info').style.display = 'none';
@@ -442,7 +456,7 @@
             trackSegments = [{
                 id: 0,
                 points: gpxData.points,
-                color: colors[0]
+                color: getRandomColor()
             }];
             
             splitPoints = [];
@@ -459,17 +473,25 @@
             }
             
             // 既存の軌跡レイヤーを削除
-            trackSegments.forEach((segment, index) => {
-                const sourceId = `track-source-${index}`;
-                const layerId = `track-layer-${index}`;
-                
-                if (map.getLayer(layerId)) {
-                    map.removeLayer(layerId);
+            for (let i = 0; i < renderedSegmentCount; i++) {
+                const srcId = `track-source-${i}`;
+                const lyrId = `track-layer-${i}`;
+                const ptsSrcId = `track-points-source-${i}`;
+                const ptsLyrId = `track-points-layer-${i}`;
+
+                if (map.getLayer(lyrId)) {
+                    map.removeLayer(lyrId);
                 }
-                if (map.getSource(sourceId)) {
-                    map.removeSource(sourceId);
+                if (map.getSource(srcId)) {
+                    map.removeSource(srcId);
                 }
-            });
+                if (map.getLayer(ptsLyrId)) {
+                    map.removeLayer(ptsLyrId);
+                }
+                if (map.getSource(ptsSrcId)) {
+                    map.removeSource(ptsSrcId);
+                }
+            }
             
             // 分割点のマーカーを削除
             document.querySelectorAll('.split-marker').forEach(marker => marker.remove());
@@ -596,7 +618,8 @@
             if (!bounds.isEmpty()) {
                 map.fitBounds(bounds, { padding: 50 });
             }
-            
+
+            renderedSegmentCount = trackSegments.length;
             updateTrackInfo();
         }
         
@@ -772,12 +795,12 @@
                 {
                     id: segment.id,
                     points: firstPart,
-                    color: segment.color
+                    color: getRandomColor()
                 },
                 {
                     id: trackSegments.length,
                     points: secondPart,
-                    color: colors[trackSegments.length % colors.length]
+                    color: getRandomColor()
                 }
             ];
             
