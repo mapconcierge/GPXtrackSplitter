@@ -257,6 +257,11 @@
         let colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
         let currentPopup = null;
         let hoverPopup = null;
+        let renderedSegmentCount = 0;
+
+        function getRandomColor() {
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
         
         // 地図の初期化
         function initializeMap() {
@@ -339,18 +344,26 @@
         // 既存のデータをクリア
         function clearExistingData() {
             // 既存のレイヤーとソースを削除
-            if (mapLoaded && trackSegments.length > 0) {
-                trackSegments.forEach((segment, index) => {
-                    const sourceId = `track-source-${index}`;
-                    const layerId = `track-layer-${index}`;
-                    
-                    if (map.getLayer(layerId)) {
-                        map.removeLayer(layerId);
+            if (mapLoaded && renderedSegmentCount > 0) {
+                for (let i = 0; i < renderedSegmentCount; i++) {
+                    const srcId = `track-source-${i}`;
+                    const lyrId = `track-layer-${i}`;
+                    const ptsSrcId = `track-points-source-${i}`;
+                    const ptsLyrId = `track-points-layer-${i}`;
+
+                    if (map.getLayer(lyrId)) {
+                        map.removeLayer(lyrId);
                     }
-                    if (map.getSource(sourceId)) {
-                        map.removeSource(sourceId);
+                    if (map.getSource(srcId)) {
+                        map.removeSource(srcId);
                     }
-                });
+                    if (map.getLayer(ptsLyrId)) {
+                        map.removeLayer(ptsLyrId);
+                    }
+                    if (map.getSource(ptsSrcId)) {
+                        map.removeSource(ptsSrcId);
+                    }
+                }
             }
             
             // 分割点のマーカーを削除
@@ -370,6 +383,7 @@
             gpxData = null;
             trackSegments = [];
             splitPoints = [];
+            renderedSegmentCount = 0;
             
             // UIを更新
             document.getElementById('track-info').style.display = 'none';
@@ -426,11 +440,13 @@
                 const trkpt = trkpts[i];
                 const lat = parseFloat(trkpt.getAttribute('lat'));
                 const lon = parseFloat(trkpt.getAttribute('lon'));
+                const ele = parseFloat(trkpt.getElementsByTagName('ele')[0]?.textContent);
                 const time = trkpt.getElementsByTagName('time')[0]?.textContent;
                 
                 gpxData.points.push({
                     lat: lat,
                     lon: lon,
+                    ele: isNaN(ele) ? null : ele,
                     time: time,
                     index: i
                 });
@@ -440,7 +456,7 @@
             trackSegments = [{
                 id: 0,
                 points: gpxData.points,
-                color: colors[0]
+                color: getRandomColor()
             }];
             
             splitPoints = [];
@@ -457,17 +473,25 @@
             }
             
             // 既存の軌跡レイヤーを削除
-            trackSegments.forEach((segment, index) => {
-                const sourceId = `track-source-${index}`;
-                const layerId = `track-layer-${index}`;
-                
-                if (map.getLayer(layerId)) {
-                    map.removeLayer(layerId);
+            for (let i = 0; i < renderedSegmentCount; i++) {
+                const srcId = `track-source-${i}`;
+                const lyrId = `track-layer-${i}`;
+                const ptsSrcId = `track-points-source-${i}`;
+                const ptsLyrId = `track-points-layer-${i}`;
+
+                if (map.getLayer(lyrId)) {
+                    map.removeLayer(lyrId);
                 }
-                if (map.getSource(sourceId)) {
-                    map.removeSource(sourceId);
+                if (map.getSource(srcId)) {
+                    map.removeSource(srcId);
                 }
-            });
+                if (map.getLayer(ptsLyrId)) {
+                    map.removeLayer(ptsLyrId);
+                }
+                if (map.getSource(ptsSrcId)) {
+                    map.removeSource(ptsSrcId);
+                }
+            }
             
             // 分割点のマーカーを削除
             document.querySelectorAll('.split-marker').forEach(marker => marker.remove());
@@ -490,6 +514,7 @@
                     properties: {
                         lat: point.lat,
                         lon: point.lon,
+                        ele: point.ele,
                         time: point.time,
                         index: point.index
                     }
@@ -556,8 +581,22 @@
                     map.getCanvas().style.cursor = 'pointer';
                     showHoverPopup(e);
                 });
-                
+
                 map.on('mouseleave', pointsLayerId, function() {
+                    map.getCanvas().style.cursor = '';
+                    hideHoverPopup();
+                });
+
+                // ライン上のホバーイベント
+                map.on('mousemove', layerId, function(e) {
+                    const nearest = getClosestPoint(e.lngLat, segment.points);
+                    if (nearest) {
+                        map.getCanvas().style.cursor = 'pointer';
+                        showHoverPopupAt(e.lngLat, nearest);
+                    }
+                });
+
+                map.on('mouseleave', layerId, function() {
                     map.getCanvas().style.cursor = '';
                     hideHoverPopup();
                 });
@@ -579,45 +618,62 @@
             if (!bounds.isEmpty()) {
                 map.fitBounds(bounds, { padding: 50 });
             }
-            
+
+            renderedSegmentCount = trackSegments.length;
             updateTrackInfo();
         }
         
-        // ホバーポップアップを表示
-        function showHoverPopup(e) {
-            const feature = e.features[0];
-            const properties = feature.properties;
-            
-            // 時刻のフォーマット
+        // ポップアップ用HTML生成
+        function createHoverContent(point) {
             let timeStr = '時刻情報なし';
-            if (properties.time) {
-                const date = new Date(properties.time);
+            if (point.time) {
+                const date = new Date(point.time);
                 if (!isNaN(date.getTime())) {
                     timeStr = date.toLocaleString('ja-JP');
                 }
             }
-            
-            const popupContent = `
+
+            const eleStr = point.ele !== null && !isNaN(point.ele) ? `${point.ele} m` : '高度情報なし';
+
+            return `
                 <div class="hover-popup">
                     <div class="popup-title">📍 軌跡ポイント</div>
                     <div class="popup-item">🕐 ${timeStr}</div>
-                    <div class="popup-item">📍 緯度: ${properties.lat.toFixed(6)}</div>
-                    <div class="popup-item">📍 経度: ${properties.lon.toFixed(6)}</div>
+                    <div class="popup-item">📍 緯度: ${point.lat.toFixed(6)}</div>
+                    <div class="popup-item">📍 経度: ${point.lon.toFixed(6)}</div>
+                    <div class="popup-item">⛰ 高度: ${eleStr}</div>
                 </div>
             `;
-            
+        }
+
+        // ポップアップを表示
+        function showHoverPopupAt(lngLat, point) {
+            const popupContent = createHoverContent(point);
+
             if (hoverPopup) {
                 hoverPopup.remove();
             }
-            
+
             hoverPopup = new maplibregl.Popup({
                 closeButton: false,
                 closeOnClick: false,
                 offset: [0, -10]
             })
-            .setLngLat(e.lngLat)
+            .setLngLat(lngLat)
             .setHTML(popupContent)
             .addTo(map);
+        }
+
+        // ポイントレイヤー用ホバーハンドラ
+        function showHoverPopup(e) {
+            const properties = e.features[0].properties;
+            const point = {
+                lat: parseFloat(properties.lat),
+                lon: parseFloat(properties.lon),
+                ele: properties.ele !== undefined ? parseFloat(properties.ele) : null,
+                time: properties.time
+            };
+            showHoverPopupAt(e.lngLat, point);
         }
         
         // ホバーポップアップを非表示
@@ -659,6 +715,20 @@
             const dx = point1[0] - point2[0];
             const dy = point1[1] - point2[1];
             return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // 指定座標に最も近い軌跡ポイントを取得
+        function getClosestPoint(lngLat, points) {
+            let closest = null;
+            let minDist = Infinity;
+            points.forEach(pt => {
+                const dist = calculateDistance([lngLat.lng, lngLat.lat], [pt.lon, pt.lat]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = pt;
+                }
+            });
+            return closest;
         }
         
         // 分割確認ポップアップを表示
@@ -725,12 +795,12 @@
                 {
                     id: segment.id,
                     points: firstPart,
-                    color: segment.color
+                    color: getRandomColor()
                 },
                 {
                     id: trackSegments.length,
                     points: secondPart,
-                    color: colors[trackSegments.length % colors.length]
+                    color: getRandomColor()
                 }
             ];
             
