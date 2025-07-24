@@ -1,3 +1,5 @@
+"Content-Type: text/plain; charset=UTF-8\n"
+
 msgid "drop_gpx"
 msgstr "\ud83d\udcc1 GPX\u30d5\u30a1\u30a4\u30eb\u3092\u30c9\u30ed\u30c3\u30d7\u3057\u3066\u304f\u3060\u3055\u3044"
 
