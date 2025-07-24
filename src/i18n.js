@@ -10,10 +10,16 @@ function parsePo(text) {
         line = line.trim();
         if (!line || line.startsWith('#')) continue;
         if (line.startsWith('msgid')) {
-            key = line.match(/^msgid\s+"(.*)"$/)[1];
+            const m = line.match(/^msgid\s+"(.*)"$/);
+            if (m) {
+                key = JSON.parse(`"${m[1]}"`);
+            }
         } else if (line.startsWith('msgstr') && key !== null) {
-            const val = line.match(/^msgstr\s+"(.*)"$/)[1];
-            result[key] = val;
+            const m = line.match(/^msgstr\s+"(.*)"$/);
+            if (m) {
+                const val = JSON.parse(`"${m[1]}"`);
+                result[key] = val;
+            }
             key = null;
         }
     }
