@@ -5,7 +5,7 @@ Please drag and drop a GPX file on this site.
 Then, you can click to split.
 
 
-<img width="800" alt="Image" src="https://github.com/user-attachments/assets/184dcdf5-c2f6-4298-a2d1-a156a947cec3" />
+<img width="700" alt="Image" src="https://github.com/user-attachments/assets/15b246b4-6b8f-41d2-ab99-9298d0d39be8" />
 
 ## 0. What's New?
 * v0.1.0 Bug fix, 2025-07-24
