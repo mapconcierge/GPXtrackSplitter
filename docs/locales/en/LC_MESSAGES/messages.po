@@ -1,0 +1,68 @@
+msgid "drop_gpx"
+msgstr "\ud83d\udcc1 Drop GPX file here"
+
+msgid "select_gpx"
+msgstr "\ud83d\udcc1 Choose GPX File"
+
+msgid "status_load_file"
+msgstr "Please load a file"
+
+msgid "status_map_loaded"
+msgstr "Map loaded. Please select a GPX file"
+
+msgid "status_map_error"
+msgstr "Map loading error occurred, but you can continue"
+
+msgid "alert_select_gpx"
+msgstr "Please select a GPX file"
+
+msgid "alert_map_not_loaded"
+msgstr "Map has not finished loading. Please wait."
+
+msgid "alert_invalid_gpx"
+msgstr "Invalid GPX file format"
+
+msgid "alert_load_failed"
+msgstr "Failed to load GPX file: {message}"
+
+msgid "alert_file_read_failed"
+msgstr "Failed to read file"
+
+msgid "alert_no_valid_data"
+msgstr "No valid track data found"
+
+msgid "status_loaded_points"
+msgstr "Loaded {count} track points"
+
+msgid "heading_segments"
+msgstr "Track Segments"
+
+msgid "popup_split_confirm"
+msgstr "Split the track here?"
+
+msgid "popup_yes"
+msgstr "Yes"
+
+msgid "popup_no"
+msgstr "No"
+
+msgid "alert_split_edge"
+msgstr "Cannot split at the end point"
+
+msgid "alert_split_used"
+msgstr "This point is already used as a split point"
+
+msgid "status_split_done"
+msgstr "Split into {count} segments"
+
+msgid "segment_info"
+msgstr "Segment {index}: {count} points"
+
+msgid "alert_no_export_data"
+msgstr "No data to export"
+
+msgid "status_export_done"
+msgstr "Exported {count} GPX files"
+
+msgid "track_point_popup_title"
+msgstr "\ud83d\udccd Track Point"
