@@ -10,10 +10,16 @@ function parsePo(text) {
         line = line.trim();
         if (!line || line.startsWith('#')) continue;
         if (line.startsWith('msgid')) {
-            key = line.match(/^msgid\s+"(.*)"$/)[1];
+            const m = line.match(/^msgid\s+"(.*)"$/);
+            if (m) {
+                key = JSON.parse(`"${m[1]}"`);
+            }
         } else if (line.startsWith('msgstr') && key !== null) {
-            const val = line.match(/^msgstr\s+"(.*)"$/)[1];
-            result[key] = val;
+            const m = line.match(/^msgstr\s+"(.*)"$/);
+            if (m) {
+                const val = JSON.parse(`"${m[1]}"`);
+                result[key] = val;
+            }
             key = null;
         }
     }
@@ -58,7 +64,7 @@ function applyTranslations() {
     if (fileLabel) fileLabel.textContent = t('select_gpx');
     if (status) status.textContent = t('status_load_file');
     if (segmentHeader) segmentHeader.textContent = t('heading_segments');
-    if (exportBtn) exportBtn.textContent = '💾 Export';
+    if (exportBtn) exportBtn.textContent = currentLang === 'ja' ? '💾 エクスポート' : '💾 Export';
 }
 
 function setLanguage(lang) {
