@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPX Track Splitter by FuruhashiLab.</title>
+    <script src="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="i18n.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        .drag-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(102, 126, 234, 0.8);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+        }
+        
+        .header h1 {
+            color: white;
+            margin: 0;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+
+        .lang-switch {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        .lang-switch button {
+            margin-left: 4px;
+        }
+
+        .powered-by {
+            text-align: right;
+            color: white;
+        }
+        
+        .controls {
+            background: white;
+            padding: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            border: none;
+            display: inline-block;
+        }
+        
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .export-btn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            border: none;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .export-btn.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .export-btn.active:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+        }
+        
+        .status {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        #map {
+            width: 100%;
+            height: calc(100vh - 160px);
+            position: relative;
+        }
+        
+        .maplibregl-popup-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: none;
+            padding: 1.5rem;
+            text-align: center;
+            max-width: 250px;
+        }
+        
+        .maplibregl-popup-content.hover-popup {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 0.8rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            max-width: 200px;
+            text-align: left;
+        }
+        
+        .hover-popup .popup-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #4ECDC4;
+        }
+        
+        .hover-popup .popup-item {
+            margin: 0.2rem 0;
+            font-size: 0.85rem;
+        }
+        
+        .popup-text {
+            margin-bottom: 1rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .popup-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        
+        .popup-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        
+        .popup-btn.yes {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .popup-btn.yes:hover {
+            background: #ff5252;
+        }
+        
+        .popup-btn.no {
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .popup-btn.no:hover {
+            background: #e0e0e0;
+        }
+        
+        .track-info {
+            background: white;
+            padding: 1rem;
+            margin: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .track-segment {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .color-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="drag-overlay" id="drag-overlay">
+        📁 Drop GPX file here
+    </div>
+    
+    <div class="header">
+        <div class="lang-switch"><button onclick="setLanguage('en')">🇬🇧</button><button onclick="setLanguage('ja')">🇯🇵</button></div>
+        <h1>GPX Track Splitter v0.0.8</h1>
+        <div class="powered-by">powerd by <a href="https://github.com/furuhashilab">FuruhashiLab.</a> and <a href="https://github.com/mapconcierge">Prof. Taichi a.k.a. mapconcierge</a></div>
+    </div>
+    
+    <div class="controls">
+        <div class="file-input-wrapper">
+            <input type="file" id="gpx-file" accept=".gpx" />
+            <label for="gpx-file" class="file-input-label" id="file-input-label">
+                📁 Choose GPX File
+            </label>
+        </div>
+        <div class="status" id="status">Please load a file</div>
+        <button class="export-btn" id="export-btn">💾 Export</button>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="track-info" id="track-info" style="display: none;">
+        <h3 id="segment-header">Track Segments</h3>
+        <div id="segment-list"></div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let map;
+        let mapLoaded = false;
+        let gpxData = null;
+        let trackSegments = [];
+        let splitPoints = [];
+        let colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+        let currentPopup = null;
+        let hoverPopup = null;
+        let renderedSegmentCount = 0;
+
+        // ベースレイヤー定義
+        const baseLayers = [
+            { id: 'osm', name: 'OpenStreetMap Standard' },
+            { id: 'carto-dark', name: 'Carto Dark', tiles: [
+                'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-d.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
+            ] },
+            { id: 'carto-light', name: 'Carto Light', tiles: [
+                'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-d.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'
+            ] },
+            { id: 'hot', name: 'HOT', tiles: [
+                'https://tile-a.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+                'https://tile-b.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+                'https://tile-c.openstreetmap.fr/hot/{z}/{x}/{y}.png'
+            ] },
+            { id: 'gsi-photo', name: 'GSImaps Seamless Photo', tiles: [
+                'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg'
+            ] },
+            { id: 'oam', name: 'OAM', tiles: [
+                'https://apps.kontur.io/raster-tiler/oam/mosaic/{z}/{x}/{y}.png'
+            ] }
+        ];
+
+        function getRandomColor() {
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+        
+        // 地図の初期化
+        function initializeMap() {
+            map = new maplibregl.Map({
+                container: 'map',
+                style: {
+                    "version": 8,
+                    "sources": {
+                        "osm": {
+                            "type": "raster",
+                            "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+                            "tileSize": 256,
+                            "attribution": "© OpenStreetMap contributors"
+                        }
+                    },
+                    "layers": [
+                        {
+                            "id": "osm",
+                            "type": "raster",
+                            "source": "osm",
+                            "minzoom": 0,
+                            "maxzoom": 19
+                        }
+                    ]
+                },
+                center: [139.7671, 35.6812], // 東京
+                zoom: 10
+            });
+            
+            map.on('load', function() {
+                mapLoaded = true;
+                addAdditionalBaseLayers();
+                map.addControl(new BaseLayerControl(), 'top-right');
+                switchBaseLayer('osm');
+                // クリックイベントリスナーを追加
+                map.on('click', handleMapClick);
+                updateStatus(t('status_map_loaded'));
+            });
+            
+            map.on('error', function(e) {
+                console.error('地図の読み込みエラー:', e);
+                mapLoaded = true; // エラーでも操作を続行できるようにする
+                updateStatus(t('status_map_error'));
+            });
+        }
+
+        // 追加のベースレイヤーを地図に登録
+        function addAdditionalBaseLayers() {
+            baseLayers.slice(1).forEach(layer => {
+                map.addSource(layer.id, {
+                    type: 'raster',
+                    tiles: layer.tiles,
+                    tileSize: 256
+                });
+                map.addLayer({
+                    id: layer.id,
+                    type: 'raster',
+                    source: layer.id,
+                    layout: { visibility: 'none' },
+                    minzoom: 0,
+                    maxzoom: 19
+                });
+            });
+        }
+
+        // ベースレイヤーの切り替え
+        function switchBaseLayer(id) {
+            baseLayers.forEach(layer => {
+                if (map.getLayer(layer.id)) {
+                    map.setLayoutProperty(layer.id, 'visibility',
+                        layer.id === id ? 'visible' : 'none');
+                }
+            });
+        }
+
+        // ベースレイヤー切り替えコントロール
+        class BaseLayerControl {
+            onAdd(map) {
+                this._map = map;
+                this._container = document.createElement('div');
+                this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+                const select = document.createElement('select');
+                baseLayers.forEach(l => {
+                    const opt = document.createElement('option');
+                    opt.value = l.id;
+                    opt.textContent = l.name;
+                    select.appendChild(opt);
+                });
+                select.addEventListener('change', e => {
+                    switchBaseLayer(e.target.value);
+                });
+                this._container.appendChild(select);
+                return this._container;
+            }
+
+            onRemove() {
+                this._container.parentNode.removeChild(this._container);
+                this._map = undefined;
+            }
+        }
+        
+        // ドラッグ・アンド・ドロップの設定
+        function setupDragAndDrop() {
+            const dragOverlay = document.getElementById('drag-overlay');
+            
+            // ドラッグオーバーイベント
+            document.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dragOverlay.style.display = 'flex';
+            });
+            
+            // ドラッグリーブイベント
+            document.addEventListener('dragleave', function(e) {
+                if (e.clientX === 0 && e.clientY === 0) {
+                    dragOverlay.style.display = 'none';
+                }
+            });
+            
+            // ドロップイベント
+            document.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dragOverlay.style.display = 'none';
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.name.toLowerCase().endsWith('.gpx')) {
+                        // 既存のデータをクリア
+                        clearExistingData();
+                        loadGPXFile(file);
+                    } else {
+                        alert(t('alert_select_gpx'));
+                    }
+                }
+            });
+        }
+        
+        // 既存のデータをクリア
+        function clearExistingData() {
+            // 既存のレイヤーとソースを削除
+            if (mapLoaded && renderedSegmentCount > 0) {
+                for (let i = 0; i < renderedSegmentCount; i++) {
+                    const srcId = `track-source-${i}`;
+                    const lyrId = `track-layer-${i}`;
+                    const ptsSrcId = `track-points-source-${i}`;
+                    const ptsLyrId = `track-points-layer-${i}`;
+
+                    if (map.getLayer(lyrId)) {
+                        map.removeLayer(lyrId);
+                    }
+                    if (map.getSource(srcId)) {
+                        map.removeSource(srcId);
+                    }
+                    if (map.getLayer(ptsLyrId)) {
+                        map.removeLayer(ptsLyrId);
+                    }
+                    if (map.getSource(ptsSrcId)) {
+                        map.removeSource(ptsSrcId);
+                    }
+                }
+            }
+            
+            // 分割点のマーカーを削除
+            document.querySelectorAll('.split-marker').forEach(marker => marker.remove());
+            
+            // ポップアップを削除
+            if (currentPopup) {
+                currentPopup.remove();
+                currentPopup = null;
+            }
+            if (hoverPopup) {
+                hoverPopup.remove();
+                hoverPopup = null;
+            }
+            
+            // データをリセット
+            gpxData = null;
+            trackSegments = [];
+            splitPoints = [];
+            renderedSegmentCount = 0;
+            
+            // UIを更新
+            document.getElementById('track-info').style.display = 'none';
+            document.getElementById('export-btn').classList.remove('active');
+        }
+        
+        // GPXファイルの読み込み
+        function loadGPXFile(file) {
+            if (!mapLoaded) {
+                alert(t('alert_map_not_loaded'));
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
+                    
+                    // XMLパースエラーをチェック
+                    const parserError = xmlDoc.getElementsByTagName('parsererror');
+                    if (parserError.length > 0) {
+                        throw new Error(t('alert_invalid_gpx'));
+                    }
+                    
+                    parseGPX(xmlDoc);
+                } catch (error) {
+                    console.error('GPX読み込みエラー:', error);
+                    alert(t('alert_load_failed',{message: error.message}));
+                }
+            };
+            
+            reader.onerror = function() {
+                alert(t('alert_file_read_failed'));
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        // GPXデータのパース
+        function parseGPX(xmlDoc) {
+            const trkpts = xmlDoc.getElementsByTagName('trkpt');
+            if (trkpts.length === 0) {
+                alert(t('alert_no_valid_data'));
+                return;
+            }
+            
+            gpxData = {
+                name: xmlDoc.getElementsByTagName('name')[0]?.textContent || 'Unnamed Track',
+                points: []
+            };
+            
+            for (let i = 0; i < trkpts.length; i++) {
+                const trkpt = trkpts[i];
+                const lat = parseFloat(trkpt.getAttribute('lat'));
+                const lon = parseFloat(trkpt.getAttribute('lon'));
+                const ele = parseFloat(trkpt.getElementsByTagName('ele')[0]?.textContent);
+                const time = trkpt.getElementsByTagName('time')[0]?.textContent;
+                
+                gpxData.points.push({
+                    lat: lat,
+                    lon: lon,
+                    ele: isNaN(ele) ? null : ele,
+                    time: time,
+                    index: i
+                });
+            }
+            
+            // 初期状態では1つのセグメントとして設定
+            trackSegments = [{
+                id: 0,
+                points: gpxData.points,
+                color: getRandomColor()
+            }];
+            
+            splitPoints = [];
+            displayTrackOnMap();
+            updateStatus(t('status_loaded_points',{count:gpxData.points.length}));
+            document.getElementById('export-btn').classList.add('active');
+        }
+        
+        // 軌跡を地図上に表示
+        function displayTrackOnMap() {
+            if (!mapLoaded) {
+                console.error('地図が読み込まれていません');
+                return;
+            }
+            
+            // 既存の軌跡レイヤーを削除
+            for (let i = 0; i < renderedSegmentCount; i++) {
+                const srcId = `track-source-${i}`;
+                const lyrId = `track-layer-${i}`;
+                const ptsSrcId = `track-points-source-${i}`;
+                const ptsLyrId = `track-points-layer-${i}`;
+
+                if (map.getLayer(lyrId)) {
+                    map.removeLayer(lyrId);
+                }
+                if (map.getSource(srcId)) {
+                    map.removeSource(srcId);
+                }
+                if (map.getLayer(ptsLyrId)) {
+                    map.removeLayer(ptsLyrId);
+                }
+                if (map.getSource(ptsSrcId)) {
+                    map.removeSource(ptsSrcId);
+                }
+            }
+            
+            // 分割点のマーカーを削除
+            document.querySelectorAll('.split-marker').forEach(marker => marker.remove());
+            
+            // 軌跡の境界を計算
+            const bounds = new maplibregl.LngLatBounds();
+            
+            // 各セグメントを個別に追加
+            trackSegments.forEach((segment, index) => {
+                const coordinates = segment.points.map(point => [point.lon, point.lat]);
+                coordinates.forEach(coord => bounds.extend(coord));
+                
+                // 軌跡ポイントデータを含むFeatureCollectionを作成
+                const features = segment.points.map(point => ({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [point.lon, point.lat]
+                    },
+                    properties: {
+                        lat: point.lat,
+                        lon: point.lon,
+                        ele: point.ele,
+                        time: point.time,
+                        index: point.index
+                    }
+                }));
+                
+                const lineFeature = {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: coordinates
+                    }
+                };
+                
+                const pointsFeature = {
+                    type: 'FeatureCollection',
+                    features: features
+                };
+                
+                const sourceId = `track-source-${index}`;
+                const layerId = `track-layer-${index}`;
+                const pointsSourceId = `track-points-source-${index}`;
+                const pointsLayerId = `track-points-layer-${index}`;
+                
+                // 線を追加
+                map.addSource(sourceId, {
+                    type: 'geojson',
+                    data: lineFeature
+                });
+                
+                map.addLayer({
+                    id: layerId,
+                    type: 'line',
+                    source: sourceId,
+                    layout: {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                    },
+                    paint: {
+                        'line-color': segment.color,
+                        'line-width': 4,
+                        'line-opacity': 0.8
+                    }
+                });
+                
+                // 非表示のポイントレイヤーを追加（ホバー検出用）
+                map.addSource(pointsSourceId, {
+                    type: 'geojson',
+                    data: pointsFeature
+                });
+                
+                map.addLayer({
+                    id: pointsLayerId,
+                    type: 'circle',
+                    source: pointsSourceId,
+                    paint: {
+                        'circle-radius': 8,
+                        'circle-opacity': 0,
+                        'circle-color': segment.color
+                    }
+                });
+                
+                // ホバーイベントを追加
+                map.on('mouseenter', pointsLayerId, function(e) {
+                    map.getCanvas().style.cursor = 'pointer';
+                    showHoverPopup(e);
+                });
+
+                map.on('mouseleave', pointsLayerId, function() {
+                    map.getCanvas().style.cursor = '';
+                    hideHoverPopup();
+                });
+
+                // ライン上のホバーイベント
+                map.on('mousemove', layerId, function(e) {
+                    const nearest = getClosestPoint(e.lngLat, segment.points);
+                    if (nearest) {
+                        map.getCanvas().style.cursor = 'pointer';
+                        showHoverPopupAt(e.lngLat, nearest);
+                    }
+                });
+
+                map.on('mouseleave', layerId, function() {
+                    map.getCanvas().style.cursor = '';
+                    hideHoverPopup();
+                });
+            });
+            
+            // 分割点にマーカーを追加
+            splitPoints.forEach(point => {
+                const marker = new maplibregl.Marker({
+                    color: '#FF4444',
+                    scale: 0.8
+                })
+                .setLngLat([point.lon, point.lat])
+                .addTo(map);
+                
+                marker.getElement().classList.add('split-marker');
+            });
+            
+            // 地図のビューを軌跡に合わせる
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, { padding: 50 });
+            }
+
+            renderedSegmentCount = trackSegments.length;
+            updateTrackInfo();
+        }
+        
+        // ポップアップ用HTML生成
+        function createHoverContent(point) {
+            let timeStr = '時刻情報なし';
+            if (point.time) {
+                const date = new Date(point.time);
+                if (!isNaN(date.getTime())) {
+                    timeStr = date.toLocaleString('ja-JP');
+                }
+            }
+
+            const eleStr = point.ele !== null && !isNaN(point.ele) ? `${point.ele} m` : '高度情報なし';
+
+            return `
+                <div class="hover-popup">
+                    <div class="popup-title">${t("track_point_popup_title")}</div>
+                    <div class="popup-item">🕐 ${timeStr}</div>
+                    <div class="popup-item">📍 緯度: ${point.lat.toFixed(6)}</div>
+                    <div class="popup-item">📍 経度: ${point.lon.toFixed(6)}</div>
+                    <div class="popup-item">⛰ 高度: ${eleStr}</div>
+                </div>
+            `;
+        }
+
+        // ポップアップを表示
+        function showHoverPopupAt(lngLat, point) {
+            const popupContent = createHoverContent(point);
+
+            if (hoverPopup) {
+                hoverPopup.remove();
+            }
+
+            hoverPopup = new maplibregl.Popup({
+                closeButton: false,
+                closeOnClick: false,
+                offset: [0, -10]
+            })
+            .setLngLat(lngLat)
+            .setHTML(popupContent)
+            .addTo(map);
+        }
+
+        // ポイントレイヤー用ホバーハンドラ
+        function showHoverPopup(e) {
+            const properties = e.features[0].properties;
+            const point = {
+                lat: parseFloat(properties.lat),
+                lon: parseFloat(properties.lon),
+                ele: properties.ele !== undefined ? parseFloat(properties.ele) : null,
+                time: properties.time
+            };
+            showHoverPopupAt(e.lngLat, point);
+        }
+        
+        // ホバーポップアップを非表示
+        function hideHoverPopup() {
+            if (hoverPopup) {
+                hoverPopup.remove();
+                hoverPopup = null;
+            }
+        }
+        
+        // 地図クリックの処理
+        function handleMapClick(e) {
+            if (!gpxData || trackSegments.length === 0) return;
+            
+            const clickPoint = [e.lngLat.lng, e.lngLat.lat];
+            let closestPoint = null;
+            let minDistance = Infinity;
+            let segmentIndex = -1;
+            
+            // 各セグメントの中で最も近い点を見つける
+            trackSegments.forEach((segment, sIndex) => {
+                segment.points.forEach(point => {
+                    const distance = calculateDistance(clickPoint, [point.lon, point.lat]);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestPoint = point;
+                        segmentIndex = sIndex;
+                    }
+                });
+            });
+            
+            if (closestPoint && minDistance < 0.01) { // 約1km以内
+                showSplitConfirmation(e.lngLat, closestPoint, segmentIndex);
+            }
+        }
+        
+        // 2点間の距離を計算（簡易版）
+        function calculateDistance(point1, point2) {
+            const dx = point1[0] - point2[0];
+            const dy = point1[1] - point2[1];
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // 指定座標に最も近い軌跡ポイントを取得
+        function getClosestPoint(lngLat, points) {
+            let closest = null;
+            let minDist = Infinity;
+            points.forEach(pt => {
+                const dist = calculateDistance([lngLat.lng, lngLat.lat], [pt.lon, pt.lat]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = pt;
+                }
+            });
+            return closest;
+        }
+        
+        // 分割確認ポップアップを表示
+        function showSplitConfirmation(lngLat, point, segmentIndex) {
+            // 既存のポップアップを閉じる
+            if (currentPopup) {
+                currentPopup.remove();
+            }
+            
+            const popupContent = `
+                <div class="popup-text">${t("popup_split_confirm")}</div>
+                <div class="popup-buttons">
+                    <button class="popup-btn yes" onclick="splitTrack(${point.index}, ${segmentIndex})">${t("popup_yes")}</button>
+                    <button class="popup-btn no" onclick="closePopup()">${t("popup_no")}</button>
+                </div>
+            `;
+            
+            currentPopup = new maplibregl.Popup({
+                closeButton: false,
+                closeOnClick: false
+            })
+            .setLngLat(lngLat)
+            .setHTML(popupContent)
+            .addTo(map);
+        }
+        
+        // ポップアップを閉じる
+        function closePopup() {
+            if (currentPopup) {
+                currentPopup.remove();
+                currentPopup = null;
+            }
+        }
+        
+        // 軌跡を分割
+        function splitTrack(pointIndex, segmentIndex) {
+            closePopup();
+            
+            const segment = trackSegments[segmentIndex];
+            const splitPointIndex = segment.points.findIndex(p => p.index === pointIndex);
+            
+            if (splitPointIndex <= 0 || splitPointIndex >= segment.points.length - 1) {
+                alert(t('alert_split_edge'));
+                return;
+            }
+            
+            const splitPoint = segment.points[splitPointIndex];
+            
+            // 既に分割されている点かチェック
+            if (splitPoints.some(p => p.index === pointIndex)) {
+                alert(t('alert_split_used'));
+                return;
+            }
+            
+            // 分割点を記録
+            splitPoints.push(splitPoint);
+            
+            // セグメントを分割
+            const firstPart = segment.points.slice(0, splitPointIndex + 1);
+            const secondPart = segment.points.slice(splitPointIndex);
+            
+            // 新しいセグメントを作成
+            const newSegments = [
+                {
+                    id: segment.id,
+                    points: firstPart,
+                    color: getRandomColor()
+                },
+                {
+                    id: trackSegments.length,
+                    points: secondPart,
+                    color: getRandomColor()
+                }
+            ];
+            
+            // 既存のセグメントを置き換え
+            trackSegments.splice(segmentIndex, 1, ...newSegments);
+            
+            // 地図を更新
+            displayTrackOnMap();
+            updateStatus(t("status_split_done",{count:trackSegments.length}));
+        }
+        
+        // 軌跡情報を更新
+        function updateTrackInfo() {
+            const trackInfo = document.getElementById('track-info');
+            const segmentList = document.getElementById('segment-list');
+            
+            if (trackSegments.length > 1) {
+                trackInfo.style.display = 'block';
+                segmentList.innerHTML = '';
+                
+                trackSegments.forEach((segment, index) => {
+                    const segmentDiv = document.createElement('div');
+                    segmentDiv.className = 'track-segment';
+                    segmentDiv.innerHTML = `
+                        <div class="color-indicator" style="background-color: ${segment.color}"></div>
+                        <span>${t("segment_info",{index: index + 1, count: segment.points.length})}</span>
+                    `;
+                    segmentList.appendChild(segmentDiv);
+                });
+            } else {
+                trackInfo.style.display = 'none';
+            }
+        }
+        
+        // GPXファイルをエクスポート
+        function exportGPX() {
+            if (!gpxData || trackSegments.length === 0) {
+                alert(t('alert_no_export_data'));
+                return;
+            }
+            
+            trackSegments.forEach((segment, index) => {
+                const gpxContent = generateGPXContent(segment, index);
+                const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${gpxData.name}_segment_${index + 1}.gpx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+            
+            updateStatus(t("status_export_done",{count:trackSegments.length}));
+        }
+        
+        // GPXコンテンツを生成
+        function generateGPXContent(segment, index) {
+            const trackPoints = segment.points.map(point => {
+                const timeStr = point.time ? `<time>${point.time}</time>` : '';
+                return `      <trkpt lat="${point.lat}" lon="${point.lon}">${timeStr}</trkpt>`;
+            }).join('\n');
+            
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GPX Track Splitter">
+  <trk>
+    <name>${gpxData.name} - Segment ${index + 1}</name>
+    <trkseg>
+${trackPoints}
+    </trkseg>
+  </trk>
+</gpx>`;
+        }
+        
+        // ステータス更新
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+        
+        // イベントリスナーの設定
+        document.getElementById('gpx-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                loadGPXFile(file);
+            }
+        });
+        
+        document.getElementById('export-btn').addEventListener('click', exportGPX);
+        
+        // 地図の初期化
+        initializeMap();
+        // ドラッグ・アンド・ドロップの設定
+        setupDragAndDrop();
+    </script>
+</body>
+</html>

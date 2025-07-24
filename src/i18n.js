@@ -58,7 +58,7 @@ function applyTranslations() {
     if (fileLabel) fileLabel.textContent = t('select_gpx');
     if (status) status.textContent = t('status_load_file');
     if (segmentHeader) segmentHeader.textContent = t('heading_segments');
-    if (exportBtn) exportBtn.textContent = '💾 Export';
+    if (exportBtn) exportBtn.textContent = currentLang === 'ja' ? '💾 エクスポート' : '💾 Export';
 }
 
 function setLanguage(lang) {
